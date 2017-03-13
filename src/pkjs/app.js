@@ -16,11 +16,6 @@ function fetchCgmData() {
 	// declare local variables for message data
 	var opts = [].slice.call(arguments).pop();
 	opts = JSON.parse(localStorage.getItem('cgmPebble_new'));
-	//console.log("-------- opts 1: " + opts);
-	// switch (opts.mode) {
-	//   case "Nightscout":
-	console.log("Nightscout data to be loaded");
-	//subscribeBy(opts.endpoint);
 	opts.endpoint = opts.endpoint.replace("/pebble?units=mmol", "");
 	opts.endpoint = opts.endpoint.replace("/pebble/", "");
 	opts.endpoint = opts.endpoint.replace("/pebble", "");
@@ -57,6 +52,7 @@ function getLoopData(opts) {
 	var endpoint = opts.endpoint.replace("/pebble?units=mmol", "");
 	endpoint = endpoint.replace("/pebble/", "");
 	endpoint = endpoint.replace("/pebble", "");
+
 	var loopurl = endpoint + "/api/v2/properties/iob,loop,basal,pump,openaps";
 	var http = new XMLHttpRequest();
 	http.open("GET", loopurl, false);
@@ -67,11 +63,17 @@ function getLoopData(opts) {
 			if (loopn.length === 0) {
 				sendUnknownError("dataerr");
 				//return loopok;
-				// console.log("Typeof" typeof loopsymbol);
+				console.log("SEND UNKNOWN ERROR1");
 			} else {
-				//if ((loopn['openaps'] ===undefined) || (loopn.openaps.lastEnacted === null)){
-				if (loopn['openaps'] === undefined) {
-					if ((loopn.loop.lastOkMoment === null)) {
+        
+        
+        
+if (opts.loopOpenaps === "0") {
+   console.log("LOADING LOOP: " + opts.loopOpenaps);
+
+					//if ((loopn['openaps'] ===undefined) || (loopn.openaps.lastEnacted === null)){
+				//if (loopn['openaps'] === undefined)||(loopn['openaps'] === undefined) {
+					if (loopn.loop.lastOkMoment === null) {
 						opts.Last = "null";
 						opts.Symbol = "Warning";
 						opts.Predict = " ";
@@ -82,40 +84,47 @@ function getLoopData(opts) {
 						opts.Symbol = loopn.loop.display.label;
 						var Predict = loopn.loop.lastPredicted.values;
 						var lastPredicted = Predict.slice(-1)[0];
+
 						if (opts.radio == "mgdl_form") {
 							opts.lastPredicted = lastPredicted.toString();
 						} else {
 							lastPredicted = (Math.round(lastPredicted / 18.018).toFixed(1));
 							opts.lastPredicted = lastPredicted.toString();
 						}
-						console.log("Predict: " + Predict + "lastPredicted: " + lastPredicted);
+						//console.log("Predict: " + Predict + "lastPredicted: " + lastPredicted);
 						var PredictCut = [];
-						for (var i = 0; i < Predict.length; i = i + 2) {
+						for (var i = 0; i < Predict.length; i = i + 3) {
 							PredictCut.push(Predict[i]);
-							var items1 = PredictCut.slice(0, 20);
+							var items1 = PredictCut.slice(0, 12);
 							var d = new Date(opts.Last);
 							opts.LoopTime = timeSince(d);
 						}
 						opts.Predict = items1.toString();
+            console.log("Predict: " + opts.Predict + "lastPredicted: " + lastPredicted);
+
 					}
-					console.log("predicted: " + opts.Predict);
+					//console.log("predicted: " + opts.Predict);
 					//  var cob = loopn.loop.lastLoop.cob.cob;
 					// opts.Cob = (Math.round(cob).toFixed(1));
 					// console.log("optscob "+opts.Cob);
 				} else {
-					console.log("start openaps");
-					if ((loopn.openaps.lastLoopMoment === null)) {
+          //START OPENAPS
+					console.log("START OPENAPS");
+					if ((loopn.openaps.lastLoopMoment === null)||(loopn.openaps.lastLoopMoment === undefined)) {
 						opts.Last = "null";
 						opts.Symbol = "Warning";
 						opts.Predict = " ";
 						opts.lastPredicted = " ";
 						opts.LoopTime = "ERR";
+            console.log("No LastLoopMoment");
+
 					} else {
 						opts.Last = loopn.openaps.lastLoopMoment;
 						var d2 = new Date(opts.Last);
 						opts.LoopTime = timeSince(d2);
-						var OPENPredict = loopn.openaps.lastEnacted.predBGs.IOB;
-						var lastPredicted2 = OPENPredict.slice(-1)[0];
+						var OPENPredict = loopn.openaps.lastPredBGs.IOB;
+						//var OPENPredict = loopn.openaps.lastEnacted.predBGs.IOB;
+            var lastPredicted2 = OPENPredict.slice(-1)[0];
 						if (opts.radio == "mgdl_form") {
 							opts.lastPredicted = lastPredicted2.toString();
 						} else {
@@ -126,44 +135,64 @@ function getLoopData(opts) {
 						var PredictCut2 = [];
 						for (var i = 0; i < OPENPredict.length; i = i + 2) {
 							PredictCut2.push(OPENPredict[i]);
-							var items = PredictCut2.slice(0, 20);
+							var items = PredictCut2.slice(0, 12);
 						}
 						opts.Predict = items.toString();
 						opts.Symbol = loopn.openaps.status.label;
 					}
 				}
-				console.log("opts.Last " + opts.Last + "opts.LoopTime" + opts.LoopTime);
+console.log("opts.Last " + opts.Last + "opts.LoopTime" + opts.LoopTime);
+        //console.log("loopn.pump.pump" + loopn.pump.pump);
 				if ((loopn.pump.pump === undefined)) {
-					opts.Pump = "No Data Available";
-					opts.Raw = " ";
+					    opts.Pump = "No Data Available";
+					    opts.Raw = " ";
 				} else {
-					var pumpbat = loopn.pump.pump.battery.voltage;
+              if (loopn.pump.pump.battery.voltage === undefined){
+					        var pumpbat = loopn.pump.pump.battery.percent; 
+                  pumpbat = pumpbat + "%";
+              }else{
+					        var volt = loopn.pump.pump.battery.voltage;
+                  pumpbat = volt + "v";
+                  }  
 					var pumpres = (loopn.pump.pump.reservoir + "u");
+          console.log("Pump Res: "+pumpres);
 					var pumpdat = loopn.pump.data.clock.display;
-					opts.Pump = ("Bat:" + pumpbat + "v" + " " + "Res:" + pumpres + " " + pumpdat);
+          console.log("Pump Dat: "+ pumpdat);
+          console.log("Pump Bat: "+ pumpbat);
+					opts.Pump = ("Bat:" + pumpbat + " " + "Res:" + pumpres + " " + pumpdat);
 				}
 				/*if ((loopn.iob.display === null)) {
 				    opts.iob = "null";
 				  }else{
 				  opts.iob = Math.round(loopn.iob.iob).toFixed(1);
 				  }*/
-				console.log("pump info " + opts.Pump);
+        console.log("pump info: " + opts.Pump);
+        if (loopn['basal'] === undefined){
+          opts.Basal = "BASAL";
+        }else {
 				opts.Basal = loopn.basal.display;
+          }
 				console.log("loop body: " + " " + opts.LoopTime + " " + opts.Symbol + " " + opts.Basal);
 				//opts.predictTime = arr.toString();
 			}
 		}
 	};
 	http.onerror = function() {
+    				console.log("SEND UNKNOWN ERROR4");
+
 		sendServerError();
 	};
 	http.ontimeout = function() {
+    				console.log("SEND UNKNOWN ERROR5");
+
 		sendTimeOutError();
 	};
 	try {
 		http.send();
 	} catch (e) {
 		sendUnknownError("invalidurl");
+    				console.log("SEND UNKNOWN ERROR6");
+
 	}
 } //end GETLOOPDATA
 //get icon, bg, timeago, delta, name, noiz, raw, options
@@ -262,6 +291,7 @@ function nightscout(opts) {
 						predict = opts.Predict,
 						predictTime = opts.predictTime,
 						lastPredicted = opts.lastPredicted,
+            loopPump = opts.Pump,
 						// get battery level
 						currentBattery = responsebgs[0].battery,
 						//currentBattery = "100",
@@ -282,6 +312,8 @@ function nightscout(opts) {
 						currentSlope = "undefined",
 						currentScale = "undefined",
 						currentRatio = 0;
+                        console.log("loopPump: "+ loopPump);
+
 					// get name of T1D; if iob (case insensitive), use IOB
 					if ((NameofT1DPerson.toUpperCase() === "IOB") && ((typeof currentIOB != "undefined") && (currentIOB !== null))) {
 						// NameofT1DPerson = currentIOB + "u";
@@ -435,15 +467,11 @@ function nightscout(opts) {
 					} // if currentRawUnfilt
 					//predict = predict.tostring();
 					//add raw to pump shake data
-					var loopPump;
 					if (formatCalcRaw === null) {
 						loopPump = opts.Pump;
 					} else {
-						if (opts.Raw = " ") {
-							loopPump = opts.Pump;
-						} else {
-							loopPump = " Raw:" + formatCalcRaw + " " + opts.Pump;
-						}
+            loopPump = " Raw:" + formatCalcRaw + " " + opts.Pump;
+            console.log("loopPump: "+ loopPump)
 					}
 					if (opts.radio == "mgdl_form") {
 						values = "0"; //mgdl selected
@@ -489,7 +517,7 @@ function nightscout(opts) {
 							currentSym = "W";
 							break;
 						default:
-							currentSym = " ";
+							currentSym = "W";
 							console.log("CurrentSym" + currentSym);
 					}
 					//var mode_switch = getModeAsInteger(opts);
@@ -745,7 +773,7 @@ Pebble.addEventListener("appmessage", function(e) {
 });
 Pebble.addEventListener("showConfiguration", function(e) {
 	console.log("Showing Configuration", JSON.stringify(e));
-	Pebble.openURL('http://cgminthecloud.github.io/CGMClassicPebble/skylineloop.html');
+	Pebble.openURL('http://cgminthecloud.github.io/CGMClassicPebble/skylineloopV2.html');
 });
 Pebble.addEventListener("webviewclosed", function(e) {
 	var opts = JSON.parse(decodeURIComponent(e.response));
